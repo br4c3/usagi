@@ -66,7 +66,8 @@ public:
 
                 if (word == "let") {
                     tokens.push_back({TokenType::LET, word});
-                } else {
+                }
+                else {
                     tokens.push_back({TokenType::IDENTIFIER, word});
                 }
 
@@ -218,7 +219,8 @@ private:
     // 일치하면 다음 토큰으로 이동
     bool match(TokenType type)
     {
-        if (pos < tokens.size() && tokens[pos].type == type) {
+        if (pos < tokens.size() &&
+            tokens[pos].type == type) {
             pos++;
             return true;
         }
@@ -236,7 +238,7 @@ private:
         );
     }
 
-    // 곱셈과 나눗셈
+    // 곱셈 및 나눗셈
     std::unique_ptr<Expr> parseTerm()
     {
         auto left = parsePrimary();
@@ -266,7 +268,7 @@ private:
         return left;
     }
 
-    // 덧셈과 뺄셈
+    // 덧셈 및 뺄셈
     std::unique_ptr<Expr> parseExpression()
     {
         auto left = parseTerm();
@@ -322,7 +324,7 @@ public:
 };
 
 // ==========================================
-// 6. AST 출력 함수
+// 6. AST 출력
 // ==========================================
 
 void printAST(const Expr* expr)
@@ -373,7 +375,61 @@ void printAST(const Expr* expr)
 }
 
 // ==========================================
-// 7. Main
+// 7. Interpreter
+// ==========================================
+
+class Interpreter {
+private:
+    int evaluate(const Expr* expr)
+    {
+        // 숫자 노드
+        if (auto number =
+                dynamic_cast<const NumberExpr*>(expr)) {
+            return number->value;
+        }
+
+        // 이항 연산 노드
+        if (auto binary =
+                dynamic_cast<const BinaryExpr*>(expr)) {
+
+            // 자식 노드를 먼저 계산
+            int left = evaluate(binary->left.get());
+            int right = evaluate(binary->right.get());
+
+            // AST에 저장된 연산자에 따라 계산
+            switch (binary->op) {
+                case TokenType::PLUS:
+                    return left + right;
+
+                case TokenType::MINUS:
+                    return left - right;
+
+                case TokenType::MULTIPLY:
+                    return left * right;
+
+                case TokenType::DIVIDE:
+                    if (right == 0) {
+                        throw std::runtime_error("Division by zero");
+                    }
+                    return left / right;
+
+                default:
+                    throw std::runtime_error("Invalid operator");
+            }
+        }
+
+        throw std::runtime_error("Invalid expression");
+    }
+
+public:
+    int execute(const Expr* ast)
+    {
+        return evaluate(ast);
+    }
+};
+
+// ==========================================
+// 8. Main
 // ==========================================
 
 int main(void)
@@ -392,17 +448,24 @@ int main(void)
                       << " : " << token.value << '\n';
         }
 
-        // 2. Parser
+        // 2. Parser + AST 생성
         Parser parser(tokens);
         auto ast = parser.parse();
 
         std::cout << "\n[Parser]\n";
         std::cout << "Syntax OK\n";
 
-        // 3. AST
+        // 3. AST 출력
         std::cout << "\n[AST]\n";
         printAST(ast.get());
         std::cout << '\n';
+
+        // 4. Interpreter 실행
+        Interpreter interpreter;
+        int result = interpreter.execute(ast.get());
+
+        std::cout << "\n[Interpreter]\n";
+        std::cout << "Result: " << result << '\n';
     }
     catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << '\n';
